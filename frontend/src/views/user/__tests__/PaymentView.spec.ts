@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, shallowMount } from '@vue/test-utils'
+import { flushPromises, mount, shallowMount } from '@vue/test-utils'
 import PaymentView from '../PaymentView.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 
@@ -260,9 +260,14 @@ describe('PaymentView WeChat JSAPI flow', () => {
     createOrder.mockResolvedValue(jsapiOrderFixture('resume-token-missing-bridge'))
     ;(window as Window & { WeixinJSBridge?: { invoke: typeof bridgeInvoke } }).WeixinJSBridge = undefined
 
-    const wrapper = shallowMount(PaymentView, {
+    const wrapper = mount(PaymentView, {
       global: {
         stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          AmountInput: true,
+          PaymentMethodSelector: true,
+          PaymentStatusPanel: true,
+          SubscriptionPlanCard: true,
           Teleport: true,
           Transition: false,
         },
@@ -369,6 +374,27 @@ describe('PaymentView WeChat JSAPI flow', () => {
       configurable: true,
       value: originalLocation,
     })
+  })
+
+  it('selects a subscription plan from direct marketplace navigation', async () => {
+    routeState.query = {
+      tab: 'subscription',
+      plan_id: '7',
+    }
+    getCheckoutInfo.mockResolvedValue(checkoutInfoWithPlansFixture())
+
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+
+    expect((wrapper.vm as unknown as { selectedPlan?: { name: string } | null }).selectedPlan?.name).toBe('Starter')
+    expect(createOrder).not.toHaveBeenCalled()
   })
 
   it('falls back to QR flow when mobile WeChat payment is unavailable', async () => {

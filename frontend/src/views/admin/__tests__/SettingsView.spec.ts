@@ -420,6 +420,11 @@ const baseSettingsResponse = {
     gemini:      { daily: null, weekly: null, monthly: 200 },
     antigravity: { daily: null, weekly: null, monthly: null },
   },
+  channel_monitor_enabled: true,
+  channel_monitor_default_interval_seconds: 60,
+  available_channels_enabled: false,
+  model_marketplace_public_enabled: false,
+  affiliate_enabled: false,
 };
 
 function mountView() {
@@ -427,6 +432,8 @@ function mountView() {
     global: {
       stubs: {
         AppLayout: AppLayoutStub,
+        RouterLink: true,
+        'router-link': true,
         Select: SelectStub,
         Toggle: ToggleStub,
         Icon: true,
@@ -450,6 +457,16 @@ async function openPaymentTab(wrapper: ReturnType<typeof mountView>) {
 
   expect(paymentTabButton).toBeDefined();
   await paymentTabButton?.trigger("click");
+  await flushPromises();
+}
+
+async function openFeaturesTab(wrapper: ReturnType<typeof mountView>) {
+  const featuresTabButton = wrapper
+    .findAll("button")
+    .find((node) => node.text().includes("admin.settings.tabs.features"));
+
+  expect(featuresTabButton).toBeDefined();
+  await featuresTabButton?.trigger("click");
   await flushPromises();
 }
 
@@ -602,6 +619,71 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(payload).not.toHaveProperty("payment_visible_method_wxpay_enabled");
   });
 
+  it("submits model marketplace guest visibility together with available channels", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      available_channels_enabled: true,
+      model_marketplace_public_enabled: true,
+    });
+
+    const wrapper = mountView();
+
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        available_channels_enabled: true,
+        model_marketplace_public_enabled: true,
+      }),
+    );
+  });
+
+  it("clears model marketplace guest visibility when available channels is disabled", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse,
+      available_channels_enabled: true,
+      model_marketplace_public_enabled: true,
+    });
+
+    const wrapper = mountView();
+
+    await flushPromises();
+    await openFeaturesTab(wrapper);
+
+    expect(
+      (
+        wrapper.get('[data-testid="settings-model-marketplace-public-enabled"]')
+          .element as HTMLInputElement
+      ).checked,
+    ).toBe(true);
+
+    await wrapper
+      .get('[data-testid="settings-available-channels-enabled"]')
+      .setValue(false);
+    await flushPromises();
+
+    expect(
+      (
+        wrapper.get('[data-testid="settings-model-marketplace-public-enabled"]')
+          .element as HTMLInputElement
+      ).checked,
+    ).toBe(false);
+
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+
+    expect(updateSettings).toHaveBeenCalledTimes(1);
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        available_channels_enabled: false,
+        model_marketplace_public_enabled: false,
+      }),
+    );
+  });
+
   it("submits Anthropic cache TTL injection gateway setting", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,
@@ -701,6 +783,8 @@ describe("admin SettingsView payment visible method controls", () => {
       global: {
         stubs: {
           AppLayout: AppLayoutStub,
+          RouterLink: true,
+          'router-link': true,
           Select: SelectStub,
           Toggle: ToggleStub,
           Icon: true,

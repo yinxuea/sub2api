@@ -669,6 +669,22 @@ function selectPlanFromModal(plan: SubscriptionPlan) {
   errorMessage.value = ''
 }
 
+function firstQueryString(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) {
+    const first = value[0]
+    return typeof first === 'string' ? first : undefined
+  }
+  return undefined
+}
+
+function parsePositiveQueryID(value: unknown): number | null {
+  const raw = firstQueryString(value)
+  if (!raw) return null
+  const id = Number(raw)
+  return Number.isInteger(id) && id > 0 ? id : null
+}
+
 function closeRenewalModal() {
   showRenewalModal.value = false
   renewGroupId.value = null
@@ -1055,10 +1071,13 @@ onMounted(async () => {
     if (checkout.value.balance_disabled) {
       activeTab.value = 'subscription'
     }
-    // Handle renewal navigation: ?tab=subscription&group=123
-    if (route.query.tab === 'subscription') {
+    // Handle direct subscription navigation from subscriptions/marketplace.
+    const requestedPlanId = parsePositiveQueryID(route.query.plan_id ?? route.query.plan)
+    if (route.query.tab === 'subscription' || requestedPlanId !== null) {
       activeTab.value = 'subscription'
-      if (route.query.group) {
+      if (requestedPlanId !== null) {
+        selectedPlan.value = checkout.value.plans.find(plan => plan.id === requestedPlanId) ?? null
+      } else if (route.query.group) {
         const groupId = Number(route.query.group)
         const groupPlans = checkout.value.plans.filter(p => p.group_id === groupId)
         if (groupPlans.length === 1) {
