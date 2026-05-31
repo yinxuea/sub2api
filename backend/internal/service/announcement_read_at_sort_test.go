@@ -61,8 +61,8 @@ func TestListUserReadStatus_RoutesToReadAtPath(t *testing.T) {
 	annRepo := &announcementRepoStub{item: &Announcement{ID: 1, Title: "x", Content: "x"}}
 	readRepo := &readByReadAtRepoStub{
 		rows: []AnnouncementReadUserRow{
-			{UserID: 7, Email: "early@example.com", Username: "early", Balance: 0, ReadAt: timePtr(time.Unix(1000, 0))},
-			{UserID: 8, Email: "late@example.com", Username: "late", Balance: 0, ReadAt: timePtr(time.Unix(2000, 0))},
+			{UserID: 7, Email: "early@example.com", Username: "early", Balance: 0, ReadAt: announcementReadTimePtr(time.Unix(1000, 0))},
+			{UserID: 8, Email: "late@example.com", Username: "late", Balance: 0, ReadAt: announcementReadTimePtr(time.Unix(2000, 0))},
 			{UserID: 9, Email: "unread@example.com", Username: "unread", Balance: 0, ReadAt: nil},
 		},
 		page: &pagination.PaginationResult{Page: 1, PageSize: 20, Total: 3, Pages: 1},
@@ -128,4 +128,4 @@ func TestListUserReadStatus_TrimsAndLowercasesSortBy(t *testing.T) {
 	require.True(t, readRepo.called)
 }
 
-func timePtr(t time.Time) *time.Time { return &t }
+func announcementReadTimePtr(t time.Time) *time.Time { return &t }
