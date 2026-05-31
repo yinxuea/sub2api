@@ -366,6 +366,7 @@ func (h *OpenAIGatewayHandler) Responses(c *gin.Context) {
 					accountReleaseFunc()
 				}
 			}()
+			service.ClearParsedRequestBodyCache(c)
 			return h.gatewayService.Forward(c.Request.Context(), c, account, forwardBody)
 		}()
 		forwardDurationMs := time.Since(forwardStart).Milliseconds()

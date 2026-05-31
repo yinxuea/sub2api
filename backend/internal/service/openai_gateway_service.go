@@ -6819,7 +6819,7 @@ func isEmptyBase64DataURI(raw string) bool {
 func getOpenAIRequestBodyMap(c *gin.Context, body []byte) (map[string]any, error) {
 	if c != nil {
 		if cached, ok := c.Get(OpenAIParsedRequestBodyKey); ok {
-			if reqBody, ok := cached.(map[string]any); ok && reqBody != nil {
+			if reqBody, ok := cached.(map[string]any); ok && reqBody != nil && openAIRequestBodyCacheMatchesRawModel(reqBody, body) {
 				return reqBody, nil
 			}
 		}
@@ -6833,6 +6833,20 @@ func getOpenAIRequestBodyMap(c *gin.Context, body []byte) (map[string]any, error
 		c.Set(OpenAIParsedRequestBodyKey, reqBody)
 	}
 	return reqBody, nil
+}
+
+func openAIRequestBodyCacheMatchesRawModel(reqBody map[string]any, body []byte) bool {
+	rawModel := gjson.GetBytes(body, "model")
+	if !rawModel.Exists() || rawModel.Type != gjson.String {
+		return true
+	}
+	cachedModel, ok := reqBody["model"].(string)
+	return ok && cachedModel == rawModel.String()
+}
+
+// ClearParsedRequestBodyCache drops the per-request parsed OpenAI body cache.
+func ClearParsedRequestBodyCache(c *gin.Context) {
+	releaseOpenAIParsedRequestBody(c)
 }
 
 func releaseOpenAIParsedRequestBody(c *gin.Context) {
