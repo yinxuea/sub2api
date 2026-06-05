@@ -23,7 +23,6 @@ func TestOpenAIGatewayService_Forward_FailoverReparsesCachedBodyForNextAccount(t
 		requestModel  string
 		firstMapping  map[string]any
 		secondMapping map[string]any
-		clearCache    bool
 		wantFirst     string
 		wantSecond    string
 	}{
@@ -31,7 +30,6 @@ func TestOpenAIGatewayService_Forward_FailoverReparsesCachedBodyForNextAccount(t
 			name:          "both accounts have mapping",
 			firstMapping:  map[string]any{"alias-model": "base-model-a"},
 			secondMapping: map[string]any{"alias-model": "base-model-b"},
-			clearCache:    true,
 			wantFirst:     "base-model-a",
 			wantSecond:    "base-model-b",
 		},
@@ -39,19 +37,17 @@ func TestOpenAIGatewayService_Forward_FailoverReparsesCachedBodyForNextAccount(t
 			name:         "first account has mapping second account has none",
 			requestModel: "gpt-5.4-high",
 			firstMapping: map[string]any{"gpt-5.4-high": "gpt-5.4"},
-			clearCache:   true,
 			wantFirst:    "gpt-5.4",
 			wantSecond:   "gpt-5.4",
 		},
 		{
 			name:          "first account has no mapping second account has mapping",
 			secondMapping: map[string]any{"alias-model": "base-model-b"},
-			clearCache:    true,
 			wantFirst:     "alias-model",
 			wantSecond:    "base-model-b",
 		},
 		{
-			name:          "dirty cache is reparsed when mappings differ",
+			name:          "legacy context cache is ignored when mappings differ",
 			firstMapping:  map[string]any{"alias-model": "base-model-a"},
 			secondMapping: map[string]any{"alias-model": "base-model-b"},
 			wantFirst:     "base-model-a",
@@ -96,9 +92,7 @@ func TestOpenAIGatewayService_Forward_FailoverReparsesCachedBodyForNextAccount(t
 			require.Len(t, upstream.bodies, 1)
 			require.Equal(t, tt.wantFirst, gjson.GetBytes(upstream.bodies[0], "model").String())
 
-			if tt.clearCache {
-				ClearParsedRequestBodyCache(c)
-			}
+			c.Set("openai_parsed_request_body", map[string]any{"model": tt.wantFirst, "stream": true})
 			result, err := svc.Forward(context.Background(), c, secondAccount, body)
 			require.NoError(t, err)
 			require.NotNil(t, result)
@@ -108,12 +102,12 @@ func TestOpenAIGatewayService_Forward_FailoverReparsesCachedBodyForNextAccount(t
 	}
 }
 
-func TestGetOpenAIRequestBodyMap_IgnoresDirtyContextCacheModel(t *testing.T) {
+func TestGetOpenAIRequestBodyMap_IgnoresLegacyContextCache(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
-	c.Set(OpenAIParsedRequestBodyKey, map[string]any{"model": "base-model-a", "stream": true})
+	c.Set("openai_parsed_request_body", map[string]any{"model": "base-model-a", "stream": true})
 
 	got, err := getOpenAIRequestBodyMap(c, []byte(`{"model":"alias-model","stream":false}`))
 	require.NoError(t, err)
